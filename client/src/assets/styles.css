@@ -1,0 +1,174 @@
+/* Custom styles for CastFight */
+
+.font-heading {
+  font-family: 'Exo 2', sans-serif;
+}
+
+.font-body {
+  font-family: 'Rubik', sans-serif;
+}
+
+body {
+  background: linear-gradient(135deg, #2A2D3E 0%, #454968 100%);
+  font-family: 'Rubik', sans-serif;
+}
+
+.game-card {
+  transition: all 0.3s ease;
+}
+
+.game-card:hover {
+  transform: translateY(-5px);
+}
+
+.character-animation {
+  animation: float 3s ease-in-out infinite;
+}
+
+.glow-effect {
+  animation: glow 2s ease-in-out infinite alternate;
+}
+
+.battle-bg {
+  background-image: radial-gradient(circle at center, rgba(76, 201, 240, 0.1) 0%, rgba(0, 0, 0, 0) 70%);
+}
+
+/* Animation keyframes */
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-10px); }
+}
+
+@keyframes glow {
+  0% { box-shadow: 0 0 5px rgba(76, 201, 240, 0.5); }
+  100% { box-shadow: 0 0 20px rgba(76, 201, 240, 0.8); }
+}
+
+/* Custom color classes */
+.text-primary {
+  color: #5D3FD3;
+}
+
+.text-primary-light {
+  color: #7A5FE9;
+}
+
+.text-primary-dark {
+  color: #4A2DB3;
+}
+
+.text-secondary {
+  color: #FF6B6B;
+}
+
+.text-secondary-light {
+  color: #FF8A8A;
+}
+
+.text-secondary-dark {
+  color: #E55555;
+}
+
+.text-accent {
+  color: #4CC9F0;
+}
+
+.text-accent-light {
+  color: #6ED4F4;
+}
+
+.text-accent-dark {
+  color: #38B6DD;
+}
+
+.bg-primary {
+  background-color: #5D3FD3;
+}
+
+.bg-primary-light {
+  background-color: #7A5FE9;
+}
+
+.bg-primary-dark {
+  background-color: #4A2DB3;
+}
+
+.bg-secondary {
+  background-color: #FF6B6B;
+}
+
+.bg-secondary-light {
+  background-color: #FF8A8A;
+}
+
+.bg-secondary-dark {
+  background-color: #E55555;
+}
+
+.bg-accent {
+  background-color: #4CC9F0;
+}
+
+.bg-accent-light {
+  background-color: #6ED4F4;
+}
+
+.bg-accent-dark {
+  background-color: #38B6DD;
+}
+
+.bg-neutral-dark {
+  background-color: #2A2D3E;
+}
+
+.bg-neutral-mid {
+  background-color: #4E5165;
+}
+
+.bg-neutral-light {
+  background-color: #F8F9FA;
+}
+
+.text-neutral-dark {
+  color: #2A2D3E;
+}
+
+.text-neutral-mid {
+  color: #4E5165;
+}
+
+.text-neutral-light {
+  color: #F8F9FA;
+}
+
+.bg-success {
+  background-color: #4CAF50;
+}
+
+.text-success {
+  color: #4CAF50;
+}
+
+.bg-error {
+  background-color: #F44336;
+}
+
+.text-error {
+  color: #F44336;
+}
+
+.bg-warning {
+  background-color: #FF9800;
+}
+
+.text-warning {
+  color: #FF9800;
+}
+
+.bg-info {
+  background-color: #2196F3;
+}
+
+.text-info {
+  color: #2196F3;
+}
