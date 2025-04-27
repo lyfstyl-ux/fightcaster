@@ -19,14 +19,30 @@ export const useIsFarcasterApp = (): boolean => {
 
   useEffect(() => {
     // Check if we're running inside a Farcaster environment
-    const isFarcaster = Boolean(
-      (window as any).fc ||
-      (window as any).farcaster ||
-      window.location.href.includes('warpcast.com') || 
-      window.location.href.includes('farcaster.xyz')
-    );
+    const checkFarcaster = async () => {
+      try {
+        // Check for modern Farcaster API
+        const isFarcaster = Boolean(
+          (window as any).farcaster?.getAuthStatus ||
+          (window as any).fc?.status ||
+          window.location.href.includes('warpcast.com')
+        );
+        
+        // Verify authentication status if available
+        if ((window as any).farcaster?.getAuthStatus) {
+          const status = await (window as any).farcaster.getAuthStatus();
+          setIsInsideFarcaster(status.isAuthenticated);
+          return;
+        }
+        
+        setIsInsideFarcaster(isFarcaster);
+      } catch (err) {
+        console.warn('Farcaster detection error:', err);
+        setIsInsideFarcaster(false);
+      }
+    };
     
-    setIsInsideFarcaster(isFarcaster);
+    checkFarcaster();
   }, []);
 
   return isInsideFarcaster;
@@ -103,13 +119,24 @@ export const useFarcasterAuth = () => {
 
       if (isFarcasterApp) {
         // In Farcaster app environment
-        if ((window as any).farcaster?.signin) {
-          await (window as any).farcaster.signin();
-          initialize(); // Re-fetch user info
+        if ((window as any).farcaster?.connect) {
+          const { success, message } = await (window as any).farcaster.connect({
+            timeout: 30000,
+            onCancel: () => {
+              throw new Error('User cancelled sign in');
+            }
+          });
+          
+          if (success) {
+            await initialize();
+          } else {
+            throw new Error(message || 'Failed to connect');
+          }
         }
       } else {
-        // Not in Farcaster and no AuthKit - this should typically redirect to Warpcast
-        window.location.href = `https://warpcast.com/~/sign-in?response_type=message&client_id=${window.location.host}`;
+        // Not in Farcaster environment - redirect to Warpcast
+        const redirectUri = `${window.location.origin}/callback`;
+        window.location.href = `https://warpcast.com/~/sign-in?response_type=message&client_id=${window.location.host}&redirect_uri=${encodeURIComponent(redirectUri)}`;
       }
     } catch (err) {
       console.error("Farcaster sign in error:", err);
@@ -218,6 +245,56 @@ export const useFarcasterAuth = () => {
       : `I challenge @${username} to a battle in CastFight with my ${characterName}! Accept at ${window.location.origin} 🎮⚔️`;
 
     return cast(challengeText);
+  };
+
+
+  // Request notification permissions
+  const requestNotifications = async () => {
+    try {
+      if (!isFarcasterApp || !user) return false;
+      
+      if ((window as any).farcaster?.requestNotifications) {
+        const { success } = await (window as any).farcaster.requestNotifications();
+        return success;
+      }
+      return false;
+    } catch (err) {
+      console.error('Failed to request notifications:', err);
+      return false;
+    }
+  };
+
+  // Get connected wallet
+  const getWallet = async () => {
+    try {
+      if (!isFarcasterApp || !user) return null;
+      
+      if ((window as any).farcaster?.getWalletSigner) {
+        const { success, data } = await (window as any).farcaster.getWalletSigner();
+        if (success) {
+          return data;
+        }
+      }
+      return null;
+    } catch (err) {
+      console.error('Failed to get wallet:', err);
+      return null;
+    }
+  };
+
+  return {
+    user,
+    isLoading,
+    error,
+    signIn,
+    signOut,
+    cast,
+    shareBattleResult,
+    reactToCastFightMention,
+    challengeUser,
+    isFarcasterApp,
+    requestNotifications,
+    getWallet
   };
 
   // Initialize on mount
