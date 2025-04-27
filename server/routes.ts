@@ -20,88 +20,43 @@ declare module "express-session" {
 export async function registerRoutes(app: Express): Promise<Server> {
   const httpServer = createServer(app);
   
-  // Setup a simpler WebSocket server for battle updates
-  const wss = new WebSocketServer({ server: httpServer });
+  // Do not use WebSocket directly due to conflicts with Vite's WebSocket
+  // Instead, we'll focus on the HTTP API for battle state updates
+  // This avoids WebSocket frame errors in the Replit environment
   
-  // Keep track of all connected clients
-  const clients = new Set();
+  const activeGames = new Map();
   
-  wss.on('connection', function connection(ws) {
-    console.log('WebSocket client connected');
-    clients.add(ws);
-    
-    // Send a welcome message
-    ws.send(JSON.stringify({
-      type: 'CONNECTED',
-      message: 'Connected to CastFight game server',
-      timestamp: new Date().toISOString()
-    }));
-    
-    // Handle messages
-    ws.on('message', function incoming(message) {
-      try {
-        const data = JSON.parse(message.toString());
-        console.log('Received message:', data);
-        
-        // Handle ping messages
-        if (data.type === 'PING') {
-          ws.send(JSON.stringify({ type: 'PONG', timestamp: new Date().toISOString() }));
-        }
-      } catch (error) {
-        console.error('Error processing message:', error);
-      }
+  // Helper function to add or update an active game
+  const updateGameState = (battleId: number, battleState: any) => {
+    activeGames.set(battleId, {
+      battleState,
+      lastUpdated: new Date().toISOString()
     });
-    
-    // Handle connection close
-    ws.on('close', function close() {
-      console.log('WebSocket client disconnected');
-      clients.delete(ws);
-    });
-    
-    // Handle errors
-    ws.on('error', function error(err) {
-      console.error('WebSocket error:', err);
-      clients.delete(ws);
-    });
-  });
+    console.log(`Updated game state for battle ${battleId}`);
+  };
   
-  // Handle server errors
-  wss.on('error', function error(err) {
-    console.error('WebSocket server error:', err);
-  });
-  
-  // Helper function to broadcast battle updates to WebSocket clients
+  // Track battle state changes (replaced WebSocket broadcasting)
   const broadcastBattleUpdate = (battleId: number, data: any) => {
     try {
-      // Create a message with additional metadata
-      const message = JSON.stringify({
-        type: 'BATTLE_UPDATE',
-        battleId,
-        data,
-        timestamp: new Date().toISOString(),
-        messageId: Math.random().toString(36).substring(2, 15)
-      });
+      // Instead of WebSocket broadcasting, we'll just store the latest state
+      // The client will poll for updates
+      console.log(`Updating state for battle ${battleId}`);
       
-      let clientCount = 0;
+      if (data.battleState) {
+        updateGameState(battleId, data.battleState);
+      }
       
-      // Log message size for debugging
-      console.log(`Broadcasting battle update: battleId=${battleId}, message size=${message.length} bytes`);
-      
-      // Only broadcast to open connections
-      wss.clients.forEach(function each(client) {
-        if (client.readyState === WebSocket.OPEN) {
-          try {
-            client.send(message);
-            clientCount++;
-          } catch (e) {
-            console.error('Failed to send update to client:', e);
-          }
-        }
-      });
-      
-      console.log(`Battle update for battle ${battleId} sent to ${clientCount} clients`);
+      // Also store the full battle object if it exists
+      if (data.battle) {
+        const gameData = activeGames.get(battleId) || {};
+        activeGames.set(battleId, {
+          ...gameData,
+          battle: data.battle,
+          lastUpdated: new Date().toISOString()
+        });
+      }
     } catch (error) {
-      console.error('Error preparing battle update broadcast:', error);
+      console.error('Error updating battle state:', error);
     }
   };
   
@@ -526,6 +481,43 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json({ players: recentPlayers });
     } catch (error) {
       console.error(error);
+      res.status(500).json({ message: 'Server error' });
+    }
+  });
+  
+  // Polling endpoint for real-time battle updates
+  app.get('/api/battles/:id/updates', async (req: Request, res: Response) => {
+    try {
+      const battleId = parseInt(req.params.id);
+      
+      // First check our in-memory cache for the most recent update
+      const gameData = activeGames.get(battleId);
+      
+      if (gameData && gameData.battleState) {
+        console.log(`Serving cached battle state for battle ${battleId}`);
+        return res.json({ 
+          battleState: gameData.battleState,
+          battle: gameData.battle || null,
+          lastUpdated: gameData.lastUpdated
+        });
+      }
+      
+      // If not in cache, get from storage
+      const battleState = await storage.getBattleState(battleId);
+      
+      if (!battleState) {
+        return res.status(404).json({ message: 'Battle state not found' });
+      }
+      
+      // Update our cache
+      updateGameState(battleId, battleState);
+      
+      return res.json({ 
+        battleState, 
+        lastUpdated: new Date().toISOString() 
+      });
+    } catch (error) {
+      console.error('Error fetching battle updates:', error);
       res.status(500).json({ message: 'Server error' });
     }
   });

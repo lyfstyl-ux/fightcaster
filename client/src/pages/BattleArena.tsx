@@ -44,9 +44,12 @@ const BattleArena: React.FC = () => {
     }
   }, [battleData]);
   
-  // Setup WebSocket listeners for real-time updates
+  // Setup battle service for real-time updates
   useEffect(() => {
     if (!battleId) return;
+    
+    // Tell battle service which battle to focus on
+    battleService.setBattleId(battleId);
     
     // Subscribe to battle updates
     const handleBattleUpdate = (message: any) => {
@@ -69,16 +72,17 @@ const BattleArena: React.FC = () => {
       }
     };
     
-    // Connect to WebSocket and listen for battle updates
-    battleWebSocket.onConnect(() => {
-      console.log('Connected to WebSocket, ready for battle updates');
+    // Connect to battle service and listen for updates
+    battleService.onConnect(() => {
+      console.log('Connected to battle service, ready for updates');
     });
     
-    battleWebSocket.subscribe('BATTLE_UPDATE', handleBattleUpdate);
+    battleService.subscribe('BATTLE_UPDATE', handleBattleUpdate);
     
-    // Cleanup
+    // Cleanup when component unmounts
     return () => {
-      battleWebSocket.unsubscribe('BATTLE_UPDATE', handleBattleUpdate);
+      battleService.unsubscribe('BATTLE_UPDATE', handleBattleUpdate);
+      battleService.setBattleId(null); // Stop polling this battle
     };
   }, [battleId, navigate]);
   
