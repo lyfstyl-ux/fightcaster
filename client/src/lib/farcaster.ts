@@ -2,26 +2,34 @@
 import { useState, useEffect } from 'react';
 import { apiRequest } from '@/lib/queryClient';
 
-// Farcaster user type
+// Farcaster user type definition
 export type FarcasterUser = {
   fid: string;
   username: string;
   displayName?: string;
   pfp?: string;
-  profile?: {
-    bio?: string;
-  };
+  bio?: string;
+  custody?: string;
+  verifications?: string[];
 };
 
-// Mocked nonce method for development
-const getNonce = async (fid: string): Promise<string> => {
-  return `nonce-${fid}-${Date.now()}`;
-};
+// Hook to check if we're inside the Farcaster app
+export const useIsFarcasterApp = (): boolean => {
+  const [isInsideFarcaster, setIsInsideFarcaster] = useState<boolean>(false);
 
-// Get the Farcaster SDK from window object
-// In a real app, this would be provided by the Farcaster environment
-const getFarcasterSdk = () => {
-  return (window as any).farcaster;
+  useEffect(() => {
+    // Check if we're running inside a Farcaster environment
+    const isFarcaster = Boolean(
+      (window as any).fc ||
+      (window as any).farcaster ||
+      window.location.href.includes('warpcast.com') || 
+      window.location.href.includes('farcaster.xyz')
+    );
+    
+    setIsInsideFarcaster(isFarcaster);
+  }, []);
+
+  return isInsideFarcaster;
 };
 
 // Hook to authenticate with Farcaster
@@ -29,6 +37,9 @@ export const useFarcasterAuth = () => {
   const [user, setUser] = useState<FarcasterUser | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
+  const isFarcasterApp = useIsFarcasterApp();
+  
+  // No AuthKit setup for now - we'll just detect if we're in Farcaster app
 
   // Initialize Farcaster auth
   const initialize = async () => {
@@ -36,18 +47,60 @@ export const useFarcasterAuth = () => {
       setIsLoading(true);
       setError(null);
 
-      const fc = getFarcasterSdk();
-
-      // If Farcaster SDK is not available
-      if (!fc) {
+      if (isFarcasterApp) {
+        // In Farcaster app environment
+        if ((window as any).farcaster?.isAuthenticated) {
+          const userData = await (window as any).farcaster.getUserInfo();
+          if (userData) {
+            const user: FarcasterUser = {
+              fid: userData.fid.toString(),
+              username: userData.username,
+              displayName: userData.displayName,
+              pfp: userData.pfp,
+              bio: userData?.profile?.bio
+            };
+            
+            setUser(user);
+            
+            // Login to our backend
+            const res = await apiRequest('POST', '/api/auth/login', { fid: user.fid });
+            const data = await res.json();
+            console.log('Logged in with Farcaster in-app user:', data);
+          }
+        }
+      } else if (authKit) {
+        // Outside Farcaster app, using AuthKit
+        const statusResponse = await authKit.status();
+        
+        if (statusResponse.status === 'authenticated' && statusResponse.data) {
+          const fcUser = statusResponse.data;
+          const user: FarcasterUser = {
+            fid: fcUser.fid.toString(),
+            username: fcUser.username,
+            displayName: fcUser.displayName || fcUser.username,
+            pfp: fcUser.pfp || '',
+            bio: fcUser.profile?.bio,
+            custody: fcUser.custody?.address,
+            verifications: fcUser.verifications
+          };
+          
+          setUser(user);
+          
+          // Login to our backend
+          const res = await apiRequest('POST', '/api/auth/login', { fid: user.fid });
+          const data = await res.json();
+          console.log('Logged in with AuthKit user:', data);
+        }
+      } else {
+        // Not in Farcaster and no AuthKit
         console.warn("Farcaster SDK not available, using mock data");
         // Use mock user for development
         const mockUser: FarcasterUser = {
           fid: "12345",
-          username: "test_user",
+          username: "user12345",
           displayName: "Test User",
           pfp: "https://i.pravatar.cc/300",
-          profile: { bio: "I am a test user" }
+          bio: "I am a test user"
         };
         
         setUser(mockUser);
@@ -56,28 +109,6 @@ export const useFarcasterAuth = () => {
         const res = await apiRequest('POST', '/api/auth/login', { fid: mockUser.fid });
         const data = await res.json();
         console.log('Logged in with mock user:', data);
-        
-        setIsLoading(false);
-        return;
-      }
-
-      // Check if user is already authenticated
-      const { status, data: fcUser } = await fc.auth.getAuthStatus();
-      
-      if (status === "authenticated" && fcUser) {
-        // User is already authenticated, set user
-        const user: FarcasterUser = {
-          fid: fcUser.fid.toString(),
-          username: fcUser.username,
-          displayName: fcUser.displayName,
-          pfp: fcUser.pfp,
-          profile: fcUser.profile
-        };
-        
-        setUser(user);
-        
-        // Login to our backend
-        await apiRequest('POST', '/api/auth/login', { fid: user.fid });
       }
     } catch (err) {
       console.error("Farcaster auth error:", err);
@@ -93,33 +124,36 @@ export const useFarcasterAuth = () => {
       setIsLoading(true);
       setError(null);
 
-      const fc = getFarcasterSdk();
-
-      if (!fc) {
-        throw new Error("Farcaster SDK not available");
-      }
-
-      // Get nonce
-      const fid = "0"; // Temporary FID for nonce
-      const nonce = await getNonce(fid);
-
-      // Sign in
-      const { status, data: fcUser } = await fc.auth.signIn({ nonce });
-
-      if (status === "authenticated" && fcUser) {
-        // User signed in, set user
-        const user: FarcasterUser = {
-          fid: fcUser.fid.toString(),
-          username: fcUser.username,
-          displayName: fcUser.displayName,
-          pfp: fcUser.pfp,
-          profile: fcUser.profile
-        };
+      if (isFarcasterApp) {
+        // In Farcaster app environment
+        if ((window as any).farcaster?.signin) {
+          await (window as any).farcaster.signin();
+          initialize(); // Re-fetch user info
+        }
+      } else if (authKit) {
+        // Outside Farcaster app, using AuthKit
+        const signInResponse = await authKit.signIn();
         
-        setUser(user);
-        
-        // Login to our backend
-        await apiRequest('POST', '/api/auth/login', { fid: user.fid });
+        if (signInResponse.status === 'authenticated' && signInResponse.data) {
+          const fcUser = signInResponse.data;
+          const user: FarcasterUser = {
+            fid: fcUser.fid.toString(),
+            username: fcUser.username,
+            displayName: fcUser.displayName || fcUser.username,
+            pfp: fcUser.pfp || '',
+            bio: fcUser.profile?.bio,
+            custody: fcUser.custody?.address,
+            verifications: fcUser.verifications
+          };
+          
+          setUser(user);
+          
+          // Login to our backend
+          await apiRequest('POST', '/api/auth/login', { fid: user.fid });
+        }
+      } else {
+        // Not in Farcaster and no AuthKit - this should typically redirect to Warpcast
+        window.location.href = `https://warpcast.com/~/sign-in?response_type=message&client_id=${window.location.host}`;
       }
     } catch (err) {
       console.error("Farcaster sign in error:", err);
@@ -135,10 +169,14 @@ export const useFarcasterAuth = () => {
       setIsLoading(true);
       setError(null);
 
-      const fc = getFarcasterSdk();
-
-      if (fc) {
-        await fc.auth.signOut();
+      if (isFarcasterApp) {
+        // In Farcaster app environment
+        if ((window as any).farcaster?.signOut) {
+          await (window as any).farcaster.signOut();
+        }
+      } else if (authKit) {
+        // Outside Farcaster app, using AuthKit
+        await authKit.signOut();
       }
 
       // Logout from our backend
@@ -156,34 +194,77 @@ export const useFarcasterAuth = () => {
   // Cast (post) a message
   const cast = async (text: string) => {
     try {
-      const fc = getFarcasterSdk();
-
-      if (!fc) {
-        throw new Error("Farcaster SDK not available");
-      }
-
       if (!user) {
         throw new Error("User not authenticated");
       }
 
-      await fc.cast.create({
-        text
-      });
-
-      return true;
+      if (isFarcasterApp) {
+        // In Farcaster app environment
+        if ((window as any).farcaster?.publishCast) {
+          await (window as any).farcaster.publishCast({
+            text
+          });
+          return true;
+        }
+      } else {
+        // Outside Farcaster app
+        // Redirect to Warpcast with the pre-filled text
+        const encodedText = encodeURIComponent(text);
+        window.open(`https://warpcast.com/~/compose?text=${encodedText}`, '_blank');
+        return true;
+      }
+      
+      throw new Error("Farcaster cast functionality not available");
     } catch (err) {
       console.error("Farcaster cast error:", err);
       throw err;
     }
   };
 
-  // Share battle results
+  // Share battle results as a Cast
   const shareBattleResult = async (won: boolean, opponentName: string, character: string) => {
     const resultText = won 
-      ? `I just won a battle against ${opponentName} with my ${character} in CastFight! 🎮⚔️`
-      : `I just had an epic battle against ${opponentName} in CastFight! Better luck next time. 🎮⚔️`;
+      ? `I just won a battle against ${opponentName} with my ${character} in CastFight! 🎮⚔️ Play at ${window.location.origin}`
+      : `I just had an epic battle against ${opponentName} in CastFight! Better luck next time. 🎮⚔️ Play at ${window.location.origin}`;
 
     return cast(resultText);
+  };
+
+  // React to Casts with the CastFight mention
+  const reactToCastFightMention = async (castHash: string, reaction: 'like' | 'recast') => {
+    try {
+      if (!user) {
+        throw new Error("User not authenticated");
+      }
+
+      if (isFarcasterApp && (window as any).farcaster) {
+        if (reaction === 'like' && (window as any).farcaster.likeCast) {
+          await (window as any).farcaster.likeCast({ castHash });
+          return true;
+        } else if (reaction === 'recast' && (window as any).farcaster.recastCast) {
+          await (window as any).farcaster.recastCast({ castHash });
+          return true;
+        }
+      } else {
+        // Outside Farcaster app, open Warpcast
+        window.open(`https://warpcast.com/~/cast/${castHash}`, '_blank');
+        return true;
+      }
+      
+      throw new Error("Farcaster reaction functionality not available");
+    } catch (err) {
+      console.error(`Farcaster ${reaction} error:`, err);
+      throw err;
+    }
+  };
+
+  // Challenge a specific user via Cast
+  const challengeUser = async (username: string, characterName: string, stakeAmount?: string) => {
+    const challengeText = stakeAmount
+      ? `I challenge @${username} to a battle in CastFight with my ${characterName}! I'm staking ${stakeAmount} for the winner! Accept at ${window.location.origin} 🎮⚔️`
+      : `I challenge @${username} to a battle in CastFight with my ${characterName}! Accept at ${window.location.origin} 🎮⚔️`;
+
+    return cast(challengeText);
   };
 
   // Initialize on mount
@@ -198,6 +279,9 @@ export const useFarcasterAuth = () => {
     signIn, 
     signOut, 
     cast, 
-    shareBattleResult 
+    shareBattleResult,
+    reactToCastFightMention,
+    challengeUser,
+    isFarcasterApp
   };
 };
