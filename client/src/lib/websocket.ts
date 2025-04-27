@@ -6,11 +6,6 @@ import { apiRequest } from './queryClient';
 type MessageCallback = (data: any) => void;
 type ConnectionCallback = () => void;
 
-// Only using HTTP polling since WebSockets conflict with Vite
-enum ConnectionType {
-  HttpPolling
-}
-
 export class BattleService {
   private messageHandlers: Map<string, MessageCallback[]> = new Map();
   private connectHandlers: ConnectionCallback[] = [];
