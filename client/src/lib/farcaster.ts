@@ -68,29 +68,6 @@ export const useFarcasterAuth = () => {
             console.log('Logged in with Farcaster in-app user:', data);
           }
         }
-      } else if (authKit) {
-        // Outside Farcaster app, using AuthKit
-        const statusResponse = await authKit.status();
-        
-        if (statusResponse.status === 'authenticated' && statusResponse.data) {
-          const fcUser = statusResponse.data;
-          const user: FarcasterUser = {
-            fid: fcUser.fid.toString(),
-            username: fcUser.username,
-            displayName: fcUser.displayName || fcUser.username,
-            pfp: fcUser.pfp || '',
-            bio: fcUser.profile?.bio,
-            custody: fcUser.custody?.address,
-            verifications: fcUser.verifications
-          };
-          
-          setUser(user);
-          
-          // Login to our backend
-          const res = await apiRequest('POST', '/api/auth/login', { fid: user.fid });
-          const data = await res.json();
-          console.log('Logged in with AuthKit user:', data);
-        }
       } else {
         // Not in Farcaster and no AuthKit
         console.warn("Farcaster SDK not available, using mock data");
@@ -130,27 +107,6 @@ export const useFarcasterAuth = () => {
           await (window as any).farcaster.signin();
           initialize(); // Re-fetch user info
         }
-      } else if (authKit) {
-        // Outside Farcaster app, using AuthKit
-        const signInResponse = await authKit.signIn();
-        
-        if (signInResponse.status === 'authenticated' && signInResponse.data) {
-          const fcUser = signInResponse.data;
-          const user: FarcasterUser = {
-            fid: fcUser.fid.toString(),
-            username: fcUser.username,
-            displayName: fcUser.displayName || fcUser.username,
-            pfp: fcUser.pfp || '',
-            bio: fcUser.profile?.bio,
-            custody: fcUser.custody?.address,
-            verifications: fcUser.verifications
-          };
-          
-          setUser(user);
-          
-          // Login to our backend
-          await apiRequest('POST', '/api/auth/login', { fid: user.fid });
-        }
       } else {
         // Not in Farcaster and no AuthKit - this should typically redirect to Warpcast
         window.location.href = `https://warpcast.com/~/sign-in?response_type=message&client_id=${window.location.host}`;
@@ -174,9 +130,6 @@ export const useFarcasterAuth = () => {
         if ((window as any).farcaster?.signOut) {
           await (window as any).farcaster.signOut();
         }
-      } else if (authKit) {
-        // Outside Farcaster app, using AuthKit
-        await authKit.signOut();
       }
 
       // Logout from our backend

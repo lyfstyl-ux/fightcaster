@@ -12,7 +12,9 @@ import BattleResults from "@/pages/BattleResults";
 import Challenges from "@/pages/Challenges";
 import Leaderboard from "@/pages/Leaderboard";
 import Profile from "@/pages/Profile";
+import { useIsFarcasterApp } from "./lib/farcaster";
 
+// Game router component
 function Router() {
   return (
     <Switch>
@@ -29,12 +31,18 @@ function Router() {
   );
 }
 
+// Main app with Farcaster checking
 function App() {
+  // Check if we're inside Farcaster app environment
+  const isFarcasterApp = useIsFarcasterApp();
+
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
-        <Toaster />
-        <Router />
+        <div className={`app-container ${isFarcasterApp ? 'farcaster-app' : 'web-app'}`}>
+          <Toaster />
+          <Router />
+        </div>
       </TooltipProvider>
     </QueryClientProvider>
   );
