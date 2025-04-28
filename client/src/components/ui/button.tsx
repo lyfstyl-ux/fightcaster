@@ -5,25 +5,25 @@ import { cva, type VariantProps } from "class-variance-authority"
 import { cn } from "@/lib/utils"
 
 const buttonVariants = cva(
-  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0",
+  "inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium transition-all focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50",
   {
     variants: {
       variant: {
-        default: "bg-primary text-primary-foreground hover:bg-primary/90",
+        default: "game-button",
         destructive:
-          "bg-destructive text-destructive-foreground hover:bg-destructive/90",
+          "relative overflow-hidden rounded-md px-4 py-2 font-heading text-sm transition-all bg-gradient-to-b from-destructive to-destructive/80 text-destructive-foreground shadow-[0_0_0_2px_rgba(var(--destructive),0.2),0_3px_0_0_hsl(var(--destructive-dark)),0_6px_12px_-2px_rgba(0,0,0,0.4)] hover:translate-y-0.5 hover:shadow-[0_0_0_2px_rgba(var(--destructive),0.2),0_2px_0_0_hsl(var(--destructive-dark)),0_4px_8px_-2px_rgba(0,0,0,0.4)] active:translate-y-1 active:shadow-[0_0_0_2px_rgba(var(--destructive),0.2),0_0_0_0_hsl(var(--destructive-dark)),0_2px_4px_-2px_rgba(0,0,0,0.4)]",
         outline:
-          "border border-input bg-background hover:bg-accent hover:text-accent-foreground",
+          "game-button border-2 border-primary bg-transparent text-primary hover:bg-primary/10",
         secondary:
-          "bg-secondary text-secondary-foreground hover:bg-secondary/80",
+          "relative overflow-hidden rounded-md px-4 py-2 font-heading text-sm transition-all bg-gradient-to-b from-secondary to-secondary-dark text-secondary-foreground shadow-[0_0_0_2px_rgba(var(--secondary),0.2),0_3px_0_0_hsl(var(--secondary-dark)),0_6px_12px_-2px_rgba(0,0,0,0.4)] hover:translate-y-0.5 hover:shadow-[0_0_0_2px_rgba(var(--secondary),0.2),0_2px_0_0_hsl(var(--secondary-dark)),0_4px_8px_-2px_rgba(0,0,0,0.4)] active:translate-y-1 active:shadow-[0_0_0_2px_rgba(var(--secondary),0.2),0_0_0_0_hsl(var(--secondary-dark)),0_2px_4px_-2px_rgba(0,0,0,0.4)]",
         ghost: "hover:bg-accent hover:text-accent-foreground",
         link: "text-primary underline-offset-4 hover:underline",
       },
       size: {
-        default: "h-10 px-4 py-2",
-        sm: "h-9 rounded-md px-3",
-        lg: "h-11 rounded-md px-8",
-        icon: "h-10 w-10",
+        default: "h-9 px-4 py-2",
+        sm: "h-8 rounded-md px-3 text-xs",
+        lg: "h-10 rounded-md px-8 text-base",
+        icon: "h-9 w-9 p-0",
       },
     },
     defaultVariants: {
